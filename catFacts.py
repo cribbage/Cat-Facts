@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 
+import argparse
+import sys
+
 from urllib.request import urlopen
 from smtplib import SMTP
 from email.mime.text import MIMEText
@@ -20,21 +23,37 @@ def getRandomWord():
 					continue
 				return line[wordStartIndex:wordStartIndex+wordEndIndex]
 				
-def getEmailFromPN():
-	pass
+def getEmailFromPN(pn):
+	with open("numtoemail.txt", "r") as numsList:
+		print("Checking for number...")
+		for line in numsList:
+			num, email = line.split()
+			if pn == num:
+				print("Number found.")
+				return email
 
-def sendText(smtp_object, message, phone_number):
+def sendText(smtp_object, message, email):
 	message = MIMEText(message)
-	smtp_object.login(email_username, email_password)
-	smtp_object.sendmail(email_username, phone_number+'@txt.att.net', message.as_string())
+	try:
+		with open("gmailaccounts.txt", "r") as gmailAccounts:
+			for line in gmailAccounts:
+				username, password = line.split()
+				smtp_object.login(username, password)
+	except SMTPAuthenticationError:
+		sys.exit("Invalid username/password!")
+	print("Sending email...")
+	smtp_object.sendmail(email_username, email, message.as_string())
 
 def catFacts(pn):
+	victimEmail = getEmailFromPN(pn)
+	if not victimEmail:
+		sys.exit("Victim number not in text file!")
 	s = SMTP('smtp.gmail.com:587')
 	s.starttls()
 	with open("catfacts.txt", "r") as cf:
 		for line in cf:
-			sendText(s, "Thanks for signing up for CatFacts! You have elected to receive a fact about cats via text once every minute! Reply '" + getRandomWord() + "' to stop further catfacts!", pn)
-			sendText(s, line, pn)
-			sleep(60)
+			sendText(s, "Thanks for signing up for CatFacts! You have elected to receive a fact about cats via text once every minute! Reply '" + getRandomWord() + "' to stop further catfacts!", victimEmail)
+			sendText(s, line, victimEmail)
+			sleep(3)
 
 catFacts(input("Phone Number: "))
